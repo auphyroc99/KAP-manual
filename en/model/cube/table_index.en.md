@@ -32,9 +32,24 @@ The first column of SortBy list must have encoding of "integer", "date" or "time
 
 Those top columns in the order of SortBy list will get more benefits on efficiency when they are filter condition of queries. Thus, we suggest you arrange SortBy columns as the order of chance to be filter condition in your environment. Do not set too many SortBy columns, because tail columns have little help for performance, increasing overheads of table index building on the contrary. We also suggest you set a column of time to be the first in SortBy list, in order to get a better performance when processing time-related queries, which are very common. 
 
+> For example: suppose you are analyzing a group of stock data with SQL statements like what is shown below. You could consider setting the CLOSING_TIME column as a SortBy column, in order to improve performance when querying according to time windows: 
+>
+> ```sql
+> select * from TRADING_TRACK
+> where CLOSING_TIME > timestamp'2017-01-01 00:00:00' 
+> and CLOSING_TIME < timestamp'2017-04-01 00:00:00'
+> ```
+
 When configuring table index, you could set 1 column as ShardBy or simply do nothing. If you set a certain column as ShardBy column, the raw data will be sharded according to values of that column. If you don't explicitly specify an ShardBy column, sharding will be done considering of values in all columns. 
 
 Selecting an appropriate ShardBy column could distribute raw data into multiple shards, thus increase concurrency, and finally get a better query performance. We suggest you choose columns with relatively large cardinalities as ShardBy column to prevent nonuniform distribution of data. 
+
+>For example: suppose you are analyzing a group of call log data with SQL statements like what is shown below. the PHONE_NUMBER column is usually a column with relatively high cardinality, as well as a column taken as a filter condition. In such case, we suggest you set is as ShardBy: 
+>
+>```sql
+>select * from CALLING_TRACK
+>where PHONE_NUMBER = '13800000000'
+>```
 
 ### Encoding
 
@@ -42,16 +57,15 @@ You can click *Encoding* drop down list of each column in table index configurat
 
 ![](images/table_index/table_index_encode.png)
 
-
-1. "orderedbytes" is designed for all types. It keeps data's order when encoding. It's the default encoding type in most cases.
-2. "var" is similar to orderedbytes except it does not preserve order. It's not suggested. Please use "orderedbytes" instead.
-3. "boolean" uses 1 byte to encode boolean values. Valid values include: true, false, TRUE, FALSE, True, False, t, f, T, F, yes, no, YES, NO, Yes, No, y, n, Y, N, 1, 0. 
-4. "integer" uses N bytes to encode integer values, where N equals the length parameter and ranges from 1 to 8. [-2^(8*N-1), 2^(8*N-1)) is supported for integer encoding with length of N. 
-5. "int" is deprecated. Use latest "integer" instead. 
-6. "date" uses 3 bytes to encode date dimension values. 
-7. "time" uses 4 bytes to encode timestamps, supporting from 1970-01-01 00:00:00 to 2038/01/19 03:14:07. Milliseconds are ignored. 
-8. "fix_length" uses a fixed-length ("length" parameter) byte array to encode integer dimension values, with potential value truncations. 
-9. "fixed_length_hex" uses a fixed-length ("length" parameter) byte array to encode the hex string dimension values, such as 1A2BFF or FF00FF, with potential value truncations. For every two hex codes, one length parameter will be assigned. 
++ "orderedbytes" is designed for all types. It keeps data's order when encoding. It's the default encoding type in most cases.
++ "var" is similar to orderedbytes except it does not preserve order. It's not suggested. Please use "orderedbytes" instead.
++ "boolean" uses 1 byte to encode boolean values. Valid values include: true, false, TRUE, FALSE, True, False, t, f, T, F, yes, no, YES, NO, Yes, No, y, n, Y, N, 1, 0. 
++ "integer" uses N bytes to encode integer values, where N equals the length parameter and ranges from 1 to 8. [-2^(8*N-1), 2^(8*N-1)) is supported for integer encoding with length of N. 
++ "int" is deprecated. Use latest "integer" instead. 
++ "date" uses 3 bytes to encode date dimension values. 
++ "time" uses 4 bytes to encode timestamps, supporting from 1970-01-01 00:00:00 to 2038/01/19 03:14:07. Milliseconds are ignored. 
++ "fix_length" uses a fixed-length ("length" parameter) byte array to encode integer dimension values, with potential value truncations. You could choose "fix_length" when you are dealing with fixed length column such as those of  MD5 values. 
++ "fixed_length_hex" uses a fixed-length ("length" parameter) byte array to encode the hex string dimension values, such as 1A2BFF or FF00FF, with potential value truncations. For every two hex codes, one length parameter will be assigned. 
 
 Notice: "dict" encoding is NOT supported in table index.
 
@@ -61,5 +75,8 @@ You can click *Index* drop down list of each column in table index configuration
 
 ![](images/table_index/table_index_index.png)
 
-1. "discrete" index is the default index. It supports fast match of equal condition, but will degrade to table scan when processing ">" or "<" condition. 
-2. "fuzzy" index is for query with like filter. If query with like filter will be applied to one column, please set the index as "fuzzy". It is not suggested to set index of too many columns as "fuzzy", which will increase storage overhead. 
++ "discrete" index is the default index. It supports fast match of equal condition, but will degrade to table scan when processing ">" or "<" condition. 
+
++ "fuzzy" index is for query with like filter. If query with like filter will be applied to one column, please set the index as "fuzzy". It is not suggested to set index of too many columns as "fuzzy", which will increase storage overhead. 
+
+  > For example: suppose you are analyzing a group of order data. You could consider setting the index type of the ITEM_NAME column as "fuzzy", in order to make it possible to process queries consisting of fuzzy matching on this column more efficiently. 
